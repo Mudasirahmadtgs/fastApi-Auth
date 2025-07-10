@@ -10,19 +10,20 @@ pip install fastapi uvicorn python-jose[cryptography] passlib[bcrypt] psycopg2-b
 # ======================
 # 1. ENVIRONMENT SETUP
 # ======================
-"""
+```python
 Create a .env file with these contents:
 DATABASE_URL=postgresql://postgres:Ahmad@localhost/Auth-fastapi
 SECRET_KEY=your_super_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-"""
+```
+---
 
 # ======================
 # 2. CONFIGURATION
 # ======================
 #app/config/config.py
-
+```python
 import os
 from pydantic_settings import BaseSettings
 
@@ -36,12 +37,13 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
-
+```
+---
 # ======================
 # 3. DATABASE SETUP
 # ======================
 #app/database.py
-
+```python
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -61,12 +63,14 @@ def get_db():
         yield db
     finally:
         db.close()
+```
+---
 
 # ======================
 # 4. USER MODEL
 # ======================
 #app/models/user.py
-
+```python
 class User(Base):
     __tablename__ = "users"
 
@@ -74,11 +78,14 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String)
+```
+---
 
 # ======================
 # 5. JWT HANDLER
 # ======================
 #app/utils/jwt_handler.py
+```python
 
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -98,11 +105,14 @@ def verify_token(token: str):
         return payload
     except JWTError:
         return None
+```
+---
 
 # ======================
 # 6. AUTH CONTROLLER
 # ======================
 #app/controllers/auth_controller.py
+```python
 
 from fastapi import HTTPException
 from passlib.context import CryptContext
@@ -149,11 +159,14 @@ def login_user(username: str, password: str, db: SessionLocal):
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": token, "token_type": "bearer"}
+```
+---
 
 # ======================
 # 7. ROUTES
 # ======================
 #app/routes/auth_routes.py
+```python
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -176,11 +189,14 @@ def signup(payload: SignupSchema, db: SessionLocal = Depends(get_db)):
 @router.post("/login")
 def login(payload: LoginSchema, db: SessionLocal = Depends(get_db)):
     return login_user(payload.username, payload.password, db)
+```
+---
 
 # ======================
 # 8. MAIN APPLICATION
 # ======================
 #app/main.py
+```python
 
 from fastapi import FastAPI
 
@@ -200,7 +216,8 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-
+```
+---
 ## testing the application   
 The API will be available at http://localhost:8000 with:
 
