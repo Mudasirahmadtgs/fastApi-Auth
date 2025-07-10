@@ -1,0 +1,5 @@
+.env           # Excludes your environment file
+__pycache__/   # Excludes Python cache
+*.pyc          # Excludes compiled Python files
+*.env          # Additional protection
+.DS_Store      # For Mac users
