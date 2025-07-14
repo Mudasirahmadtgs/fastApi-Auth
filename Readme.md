@@ -12,7 +12,7 @@ pip install fastapi uvicorn python-jose[cryptography] passlib[bcrypt] psycopg2-b
 # ======================
 ```python
 Create a .env file with these contents:
-DATABASE_URL=postgresql://postgres:Ahmad@localhost/Auth-fastapi
+DATABASE_URL=postgresql://postgres:passowrd@localhost/db-name
 SECRET_KEY=your_super_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -37,6 +37,24 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
+
+                      OR
+     #if .env file path shows error the put that code:
+
+import os
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = ""
+    SECRET_KEY: str = ""
+    ALGORITHM: str = ""
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 0
+
+    class Config:
+        env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+
+settings = Settings()
+
 ```
 ---
 # ======================
