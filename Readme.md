@@ -107,6 +107,7 @@ class User(Base):
 
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
+from app.config.config import settings
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
@@ -123,6 +124,7 @@ def verify_token(token: str):
         return payload
     except JWTError:
         return None
+
 ```
 ---
 
@@ -132,8 +134,14 @@ def verify_token(token: str):
 #app/controllers/auth_controller.py
 ```python
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from datetime import timedelta
+from app.models.user import User
+from app.database import get_db
+from app.utils.jwt_handler import create_access_token
+from app.config.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -143,40 +151,28 @@ def get_password_hash(password):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def signup_user(username: str, email: str, password: str, db: SessionLocal):
-    existing_user = db.query(User).filter(
-        (User.email == email) | (User.username == username)
-    ).first()
-    
+def signup_user(username: str, email: str, password: str, db: Session):
+    existing_user = db.query(User).filter((User.email == email) | (User.username == username)).first()
     if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username or Email already registered"
-        )
+        raise HTTPException(status_code=400, detail="Username or Email already registered")
 
-    user = User(
-        username=username,
-        email=email,
-        password=get_password_hash(password)
-    )
+    user = User(username=username, email=email, password=get_password_hash(password))
     db.add(user)
     db.commit()
     db.refresh(user)
     return {"msg": "User created successfully"}
 
-def login_user(username: str, password: str, db: SessionLocal):
+def login_user(username: str, password: str, db: Session):
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.password):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid credentials"
-        )
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token(
         data={"sub": user.username},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": token, "token_type": "bearer"}
+
 ```
 ---
 
@@ -187,6 +183,9 @@ def login_user(username: str, password: str, db: SessionLocal):
 ```python
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.controllers.auth_controller import signup_user, login_user
+from app.database import get_db
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -201,12 +200,13 @@ class LoginSchema(BaseModel):
     password: str
 
 @router.post("/signup")
-def signup(payload: SignupSchema, db: SessionLocal = Depends(get_db)):
+def signup(payload: SignupSchema, db: Session = Depends(get_db)):
     return signup_user(payload.username, payload.email, payload.password, db)
 
 @router.post("/login")
-def login(payload: LoginSchema, db: SessionLocal = Depends(get_db)):
+def login(payload: LoginSchema, db: Session = Depends(get_db)):
     return login_user(payload.username, payload.password, db)
+
 ```
 ---
 
@@ -217,14 +217,16 @@ def login(payload: LoginSchema, db: SessionLocal = Depends(get_db)):
 ```python
 
 from fastapi import FastAPI
+from app.database import Base, engine
+from app.routes import auth_routes
 
 app = FastAPI()
 
-# Create database tables
+# Create all tables
 Base.metadata.create_all(bind=engine)
 
-# Include routes
-app.include_router(router)
+# Register routes
+app.include_router(auth_routes.router)
 
 @app.get("/")
 def read_root():
@@ -233,7 +235,6 @@ def read_root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
 ```
 ---
 ## testing the application   
